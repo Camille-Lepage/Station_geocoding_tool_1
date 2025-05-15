@@ -88,7 +88,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # App title and description
-st.markdown('<div class="main-header">🌍 Station Geocoding Tool</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">🌍 Get Station Coordinates Tool</div>', unsafe_allow_html=True)
 
 # Create a download link for the results
 def get_download_link(df, filename, text):
