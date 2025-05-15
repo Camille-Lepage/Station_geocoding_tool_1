@@ -5,7 +5,7 @@ import os
 import pycountry
 from urllib.parse import quote
 
-def get_coordinates_with_nominatim(input_df, output_file, country=None, name_column='remote_name', city_column='remote_city_name', progress_callback=None):
+def get_coordinates_with_nominatim(input_df, output_file, country=None, name_column='remote_name', city_column='remote_city_name', progress_callback=None, lock_to_settlement=False):
     """
     Get GPS coordinates for each location from the DataFrame using Nominatim (OpenStreetMap).
 
@@ -16,6 +16,7 @@ def get_coordinates_with_nominatim(input_df, output_file, country=None, name_col
     name_column (str): Column name containing location names
     city_column (str): Column name containing city names
     progress_callback (function, optional): Callback function to update progress
+    lock_to_settlement (bool, optional): If True, restricts search to featureType=settlement
 
     Returns:
     DataFrame: Original DataFrame with added coordinates
@@ -107,6 +108,10 @@ def get_coordinates_with_nominatim(input_df, output_file, country=None, name_col
                 'limit': 1,  # Get only the best match
                 'addressdetails': 1  # Include address details
             }
+            # Ajoute les paramètres pour restreindre à settlement si demandé
+            if lock_to_settlement:
+                params['extratags'] = 1
+                params['featureType'] = 'settlement'
             
             # Add country code if provided (Nominatim prefers country codes)
             if country:
