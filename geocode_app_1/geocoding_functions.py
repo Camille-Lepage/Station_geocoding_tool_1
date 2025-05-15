@@ -33,6 +33,9 @@ def get_coordinates_for_locations(input_df, output_file, api_key, country=None, 
         result_df['Lng'] = None
     if 'Address' not in result_df.columns:
         result_df['Address'] = None
+    # Add Maps_Link column
+    if 'Maps_Link' not in result_df.columns:
+        result_df['Maps_Link'] = None
     
     # Check if results file already exists to resume processing
     processed_indices = set()
@@ -102,6 +105,8 @@ def get_coordinates_for_locations(input_df, output_file, api_key, country=None, 
                 result_df.at[idx, 'Lat'] = lat
                 result_df.at[idx, 'Lng'] = lng
                 result_df.at[idx, 'Address'] = formatted_address
+                # Add Google Maps link
+                result_df.at[idx, 'Maps_Link'] = f"https://www.google.com/maps?q={lat},{lng}"
             else:
                 # If no results with locality component, try without filtering
                 geocode_result = gmaps.geocode(query)
@@ -117,6 +122,8 @@ def get_coordinates_for_locations(input_df, output_file, api_key, country=None, 
                     result_df.at[idx, 'Lat'] = lat
                     result_df.at[idx, 'Lng'] = lng
                     result_df.at[idx, 'Address'] = formatted_address
+                    # Add Google Maps link
+                    result_df.at[idx, 'Maps_Link'] = f"https://www.google.com/maps?q={lat},{lng}"
                 else:
                     print(f"No results found for: {query}")
             
