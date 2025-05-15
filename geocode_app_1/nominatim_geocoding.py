@@ -42,6 +42,9 @@ def get_coordinates_with_nominatim(input_df, output_file, country=None, name_col
         result_df['OSM_ID'] = None
     if 'OSM_Type' not in result_df.columns:
         result_df['OSM_Type'] = None
+    # Add Maps_Link column
+    if 'Maps_Link' not in result_df.columns:
+        result_df['Maps_Link'] = None
     
     # Check if results file already exists to resume processing
     processed_indices = set()
@@ -141,6 +144,8 @@ def get_coordinates_with_nominatim(input_df, output_file, country=None, name_col
                     result_df.at[idx, 'Address'] = display_name
                     result_df.at[idx, 'OSM_ID'] = osm_id
                     result_df.at[idx, 'OSM_Type'] = osm_type
+                    # Add Google Maps link
+                    result_df.at[idx, 'Maps_Link'] = f"https://www.google.com/maps?q={lat},{lng}"
                 else:
                     print(f"No results found for: {query}")
             else:
