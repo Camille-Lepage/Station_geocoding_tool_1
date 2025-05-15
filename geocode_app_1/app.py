@@ -8,7 +8,7 @@ from nominatim_geocoding import get_coordinates_with_nominatim
 
 # Set page config
 st.set_page_config(
-    page_title="Station Geocoding Tool",
+    page_title="Get Station Coordinates",
     page_icon="🌎",
     layout="wide"
 )
