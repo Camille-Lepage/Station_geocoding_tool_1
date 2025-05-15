@@ -4,7 +4,7 @@ import time
 import os
 import pycountry
 
-def get_coordinates_for_locations(input_df, output_file, api_key, country=None, name_column='remote_name', city_column='remote_city_name', progress_callback=None):
+def get_coordinates_for_locations(input_df, output_file, api_key, country=None, name_column='remote_name', city_column='remote_city_name', progress_callback=None, fallback_without_location_filter=True):
     """
     Get GPS coordinates for each location from the DataFrame.
 
@@ -274,8 +274,12 @@ def display_summary(result_df, country=None, name_column='remote_name'):
     Returns:
     dict: Dictionary containing summary statistics and potential errors
     """
-    # First, filter out invalid results (where address is just the country name)
-    filtered_df = filter_invalid_results(result_df, country)
+    # Filtrer les résultats invalides : adresse vide OU adresse = nom du pays
+    filtered_df = result_df[
+        result_df['Address'].notna() &  # Adresse non nulle
+        (result_df['Address'].str.strip() != "") &  # Adresse non vide
+        (result_df['Address'].str.lower().str.strip() != (country or "").lower().strip())  # Adresse ≠ nom du pays
+    ].copy()
     
     # Find potential errors (duplicates)
     potential_errors = find_potential_errors(filtered_df, name_column)
