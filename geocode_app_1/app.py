@@ -316,7 +316,7 @@ if uploaded_file is not None:
             # Show results preview
             st.markdown('<div class="section-header">🔍 Results Preview</div>', unsafe_allow_html=True)
             st.dataframe(filtered_df, use_container_width=True)
-            
+
             # Download links
             st.markdown('<div class="section-header">📥 Download Results</div>', unsafe_allow_html=True)
             st.markdown(get_download_link(filtered_df, output_file, "Download Filtered CSV Results"), unsafe_allow_html=True)
@@ -337,6 +337,19 @@ if uploaded_file is not None:
                 st.map(map_data_for_display[['latitude', 'longitude']])
             else:
                 st.info("No valid coordinates to display on the map.")
+
+            # Show Maps links if available
+            if 'Maps_Link' in filtered_df.columns:
+                st.markdown('<div class="section-header">🔗 Maps Links</div>', unsafe_allow_html=True)
+                st.markdown('<div class="info-text">Click on any link below to open the location in Google Maps:</div>', unsafe_allow_html=True)
+                # Display only the first 10 links to avoid cluttering the UI
+                links_df = filtered_df[filtered_df['Maps_Link'].notna()].head(50)
+                for idx, row in links_df.iterrows():
+                    location_name = row[name_column] if pd.notna(row[name_column]) else "Unknown location"
+                    maps_link = row['Maps_Link']
+                    st.markdown(f'<a href="{maps_link}" target="_blank">🗺️ {location_name}</a>', unsafe_allow_html=True)
+                if len(links_df) < len(filtered_df[filtered_df['Maps_Link'].notna()]):
+                    st.info(f"Showing {len(links_df)} of {len(filtered_df[filtered_df['Maps_Link'].notna()])} available map links. Download the CSV to access all links.")
     
     except Exception as e:
         st.error(f"❌ Error processing the file: {str(e)}")
