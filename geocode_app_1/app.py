@@ -90,6 +90,15 @@ st.markdown("""
 # App title and description
 st.markdown('<div class="main-header">🌍 Get Station Coordinates Tool</div>', unsafe_allow_html=True)
 
+st.markdown("<br><br>", unsafe_allow_html=True)  # Add even more vertical space
+
+# Add attention message
+st.markdown("""
+<div class="warning-box">
+    <strong>⚠️ Attention:</strong> This tool is not 100% reliable. It is intended to help map stations for integrations that use the "points" system (such as Redbus), or integrations that do not show coordinates or addresses to customers.
+</div>
+""", unsafe_allow_html=True)
+
 # Create a download link for the results
 def get_download_link(df, filename, text):
     csv = df.to_csv(index=False)
