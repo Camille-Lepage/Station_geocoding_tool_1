@@ -366,7 +366,7 @@ else:
             <li>🛠️ Select the appropriate columns for station name and city (if available)</li>
             <li>📍 Click "Get Coordinates" to start processing</li>
         </ol>
-        <p>✨ The tool will add latitude, longitude, and address columns to your data and save intermediate results every 10 locations.</p>
+        <p>✨ The tool will add latitude, longitude, address and Maps link columns to your data and save intermediate results every 10 locations.</p>
         <p>❌ Invalid results (where the address is just the country name) will be automatically filtered.</p>
         <p>⚠️ Potential errors (when multiple different stations have identical coordinates or addresses) will be flagged.</p>
     </div>
