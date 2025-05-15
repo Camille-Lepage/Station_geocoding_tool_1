@@ -95,7 +95,8 @@ st.markdown("<br><br>", unsafe_allow_html=True)  # Add even more vertical space
 # Add attention message
 st.markdown("""
 <div class="warning-box">
-    <strong>⚠️ Attention:</strong> This tool is not 100% reliable. It is intended to help map stations for integrations that use the "points" system (such as Redbus), or integrations that do not show coordinates and addresses to customers.
+    <strong>⚠️ Attention:</strong> This tool is not 100% reliable. It is intended to help map stations for integrations that use the "points" system (such as Redbus), or integrations that do not show coordinates and addresses to customers.<br>
+    For detailed information on how the tool works, please refer to the <a href="https://one2go.atlassian.net/wiki/x/GwCE-g" target="_blank">Confluence documentation</a>.
 </div>
 """, unsafe_allow_html=True)
 
@@ -132,28 +133,42 @@ with st.sidebar:
         st.markdown("""
         <div class="info-text">
             <strong>Google Maps API</strong><br>
-            ✓ High accuracy<br>
+            ✓ High accuracy<
             ✓ Consistent results<br>
             ❌ Requires an API key<br>
-            ❌ Limited to 3000 free requests per month
+            ❌ Only 3000 free requests per month
         </div>
         """, unsafe_allow_html=True)
         
         # API Key input (only for Google Maps)
         api_key = st.text_input("Google Maps API Key", help="Enter your Google Maps API key")
+        
+        # Nouvelle option : fallback sans filtre
+        fallback_without_location_filter = st.checkbox(
+            "If no result, retry search without location filter",
+            value=False,
+            help="If enabled, when the initial search fails, a new search will be attempted without locality filtering to maximize results, though this may lead to inaccurate matches. This option is particularly useful when your station names correspond to something other than a locality name."
+        )
     else:
         st.markdown("""
         <div class="info-text">
             <strong>Nominatim / OpenStreetMap</strong><br>
             ✓ Completely free<br>
             ✓ No API key required<br>
-            ✓ Community-driven data<br>
-            ❌ Variable accuracy<br>
-            ❌ Limited to 1 request per second (slower)
+            ❌ Accuracy is really not as good<br>
+            ❌ Slower<br>
         </div>
         """, unsafe_allow_html=True)
         api_key = None  # Not needed for Nominatim
-        
+        fallback_without_location_filter = False  # Pas utilisé pour Nominatim
+
+        # Option à cocher pour restreindre à settlement
+        lock_to_settlement = st.checkbox(
+            "Restrict search to locality only",
+            value=False,
+            help="If enabled, only results classified as settlements (cities, towns, villages, etc.) will be returned by Nominatim. May improve relevance for locality searches."
+        )
+    
     # Common settings
     st.markdown("### Common Settings")
     
@@ -245,7 +260,8 @@ if uploaded_file is not None:
                     country=country, 
                     name_column=name_column, 
                     city_column=city_column,
-                    progress_callback=update_progress
+                    progress_callback=update_progress,
+                    fallback_without_location_filter=fallback_without_location_filter
                 )
             else:  # Nominatim / OSM
                 result_df = get_coordinates_with_nominatim(
@@ -254,7 +270,8 @@ if uploaded_file is not None:
                     country=country,
                     name_column=name_column,
                     city_column=city_column,
-                    progress_callback=update_progress
+                    progress_callback=update_progress,
+                    lock_to_settlement=lock_to_settlement  # <-- Passe l'option ici
                 )
 
             progress_bar.progress(1.0, text="Geocoding completed!")
