@@ -143,11 +143,11 @@ with st.sidebar:
         # API Key input (only for Google Maps)
         api_key = st.text_input("Google Maps API Key", help="Enter your Google Maps API key")
         
-        # Nouvelle option : fallback sans filtre
-        fallback_without_location_filter = st.checkbox(
-            "If no result, retry search without location filter",
+        # Nouvelle option : search without locality filter
+        search_without_locality_filter = st.checkbox(
+            "Search without locality filter",
             value=False,
-            help="If enabled, when the initial search fails, a new search will be attempted without locality filtering to maximize results, though this may lead to inaccurate matches. This option is particularly useful when your station names correspond to something other than a locality name."
+            help="If enabled, the search will be performed without restricting to the locality. This may maximize results but can lead to less relevant matches. If disabled, the search will use the locality filter for more precise results."
         )
     else:
         st.markdown("""
@@ -160,7 +160,6 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
         api_key = None  # Not needed for Nominatim
-        fallback_without_location_filter = False  # Pas utilisé pour Nominatim
 
         # Option à cocher pour restreindre à settlement
         lock_to_settlement = st.checkbox(
@@ -253,6 +252,7 @@ if uploaded_file is not None:
 
             # Process the data based on selected provider
             if st.session_state.provider == "google":
+                # search_without_locality_filter n'existe que si Google Maps est sélectionné
                 result_df = get_coordinates_for_locations(
                     df, 
                     output_file, 
@@ -261,7 +261,7 @@ if uploaded_file is not None:
                     name_column=name_column, 
                     city_column=city_column,
                     progress_callback=update_progress,
-                    fallback_without_location_filter=fallback_without_location_filter
+                    search_without_locality_filter=search_without_locality_filter
                 )
             else:  # Nominatim / OSM
                 result_df = get_coordinates_with_nominatim(
@@ -290,7 +290,6 @@ if uploaded_file is not None:
                 <p>Total locations: {summary['total_locations']}</p>
                 <p>Locations with coordinates: {summary['locations_with_coordinates']} ({summary['success_rate']:.1f}%)</p>
                 <p>Locations without coordinates: {summary['locations_without_coordinates']} ({100-summary['success_rate']:.1f}%)</p>
-                <p>Invalid results filtered (country name only): {summary['filtered_results']}</p>
             </div>
             """, unsafe_allow_html=True)
             
