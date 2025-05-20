@@ -4,7 +4,7 @@ import time
 import os
 import pycountry
 
-def get_coordinates_for_locations(input_df, output_file, api_key, country=None, name_column='remote_name', city_column='remote_city_name', progress_callback=None, fallback_without_location_filter=True):
+def get_coordinates_for_locations(input_df, output_file, api_key, country=None, name_column='remote_name', city_column='remote_city_name', progress_callback=None, search_without_locality_filter=False):
     """
     Get GPS coordinates for each location from the DataFrame.
 
@@ -16,6 +16,7 @@ def get_coordinates_for_locations(input_df, output_file, api_key, country=None, 
     name_column (str): Column name containing location names
     city_column (str): Column name containing city names
     progress_callback (function, optional): Callback function to update progress, should accept two arguments (current, total)
+    search_without_locality_filter (bool): If True, search without locality filter; if False, use locality filter
 
     Returns:
     DataFrame: Original DataFrame with added coordinates
@@ -36,6 +37,9 @@ def get_coordinates_for_locations(input_df, output_file, api_key, country=None, 
     # Add Maps_Link column
     if 'Maps_Link' not in result_df.columns:
         result_df['Maps_Link'] = None
+    # Add Locality_Filter column
+    if 'Locality_Filter' not in result_df.columns:
+        result_df['Locality_Filter'] = None
     
     # Check if results file already exists to resume processing
     processed_indices = set()
@@ -86,47 +90,61 @@ def get_coordinates_for_locations(input_df, output_file, api_key, country=None, 
             
         try:
             print(f"[{i+1}/{len(rows_to_process)}] Processing: {query}")
-            
-            # FIX: Use the Google Maps geocoding API correctly
-            # First, try with component filtering for locality
-            geocode_result = gmaps.geocode(
-                query,
-                components={"locality": location_name}
-            )
-            
-            if geocode_result:
+
+            def is_valid_geocode_result(geocode_result, country):
+                if not geocode_result:
+                    print("No geocode result")
+                    return False
+                formatted_address = geocode_result[0]['formatted_address'].strip().lower()
+                print(f"Checking formatted_address: {formatted_address}")
+                if not formatted_address:
+                    print("Empty formatted_address")
+                    return False
+                country_terms = []
+                if country:
+                    country_terms.append(country.strip().lower())
+                import pycountry
+                for pycountry_country in pycountry.countries:
+                    country_terms.append(pycountry_country.name.lower())
+                    if hasattr(pycountry_country, 'official_name') and pycountry_country.official_name:
+                        country_terms.append(pycountry_country.official_name.lower())
+                    if pycountry_country.alpha_2:
+                        country_terms.append(pycountry_country.alpha_2.lower())
+                    if pycountry_country.alpha_3:
+                        country_terms.append(pycountry_country.alpha_3.lower())
+                if formatted_address in country_terms:
+                    print("Address is just a country term, invalid")
+                    return False
+                return True
+
+            used_locality_filter = None
+
+            if search_without_locality_filter:
+                # Recherche SANS filtre locality
+                geocode_result = gmaps.geocode(query)
+                used_locality_filter = False
+            else:
+                # Recherche AVEC filtre locality
+                geocode_result = gmaps.geocode(
+                    query,
+                    components={"locality": location_name}
+                )
+                used_locality_filter = True
+
+            if is_valid_geocode_result(geocode_result, country):
                 location = geocode_result[0]['geometry']['location']
                 lat, lng = location['lat'], location['lng']
-                
-                # Get the formatted address
                 formatted_address = geocode_result[0]['formatted_address']
-                
-                # Update the result DataFrame
                 result_df.at[idx, 'Lat'] = lat
                 result_df.at[idx, 'Lng'] = lng
                 result_df.at[idx, 'Address'] = formatted_address
-                # Add Google Maps link
                 result_df.at[idx, 'Maps_Link'] = f"https://www.google.com/maps?q={lat},{lng}"
             else:
-                # If no results with locality component, try without filtering
-                geocode_result = gmaps.geocode(query)
-                
-                if geocode_result:
-                    location = geocode_result[0]['geometry']['location']
-                    lat, lng = location['lat'], location['lng']
-                    
-                    # Get the formatted address
-                    formatted_address = geocode_result[0]['formatted_address']
-                    
-                    # Update the result DataFrame
-                    result_df.at[idx, 'Lat'] = lat
-                    result_df.at[idx, 'Lng'] = lng
-                    result_df.at[idx, 'Address'] = formatted_address
-                    # Add Google Maps link
-                    result_df.at[idx, 'Maps_Link'] = f"https://www.google.com/maps?q={lat},{lng}"
-                else:
-                    print(f"No results found for: {query}")
-            
+                print(f"No valid results found for: {query}")
+
+            # Toujours écrire True ou False dans la colonne, jamais None
+            result_df.at[idx, 'Locality_Filter'] = bool(used_locality_filter)
+
             # Save progressively
             if (i + 1) % 10 == 0 or i == len(rows_to_process) - 1:
                 result_df.to_csv(output_file, index=False)
@@ -274,35 +292,35 @@ def display_summary(result_df, country=None, name_column='remote_name'):
     Returns:
     dict: Dictionary containing summary statistics and potential errors
     """
-    # Filtrer les résultats invalides : adresse vide OU adresse = nom du pays
-    filtered_df = result_df[
-        result_df['Address'].notna() &  # Adresse non nulle
-        (result_df['Address'].str.strip() != "") &  # Adresse non vide
-        (result_df['Address'].str.lower().str.strip() != (country or "").lower().strip())  # Adresse ≠ nom du pays
-    ].copy()
-    
-    # Find potential errors (duplicates)
-    potential_errors = find_potential_errors(filtered_df, name_column)
-    
-    # Create a basic summary
-    total_locations = len(filtered_df)
-    locations_with_coordinates = filtered_df['Lat'].notna().sum()
+    # Au lieu de filtrer (supprimer) les lignes avec des adresses invalides, on met à None les colonnes calculées
+    updated_df = result_df.copy()
+    country_term = (country or "").lower().strip()
+    # Pour chaque ligne, si l'adresse est vide ou égale au nom du pays, on remet à None les colonnes de géocodage
+    for idx, row in updated_df.iterrows():
+        addr = str(row['Address']).strip().lower() if pd.notna(row['Address']) else ""
+        if addr == "" or addr == country_term:
+            updated_df.at[idx, 'Lat'] = None
+            updated_df.at[idx, 'Lng'] = None
+            updated_df.at[idx, 'Address'] = None
+            if 'Maps_Link' in updated_df.columns:
+                updated_df.at[idx, 'Maps_Link'] = None
+
+    total_locations = len(updated_df)
+    locations_with_coordinates = updated_df['Lat'].notna().sum()
     locations_without_coordinates = total_locations - locations_with_coordinates
-    
-    # Calculate the percentage of successful geocoding
     success_rate = (locations_with_coordinates / total_locations) * 100 if total_locations > 0 else 0
-    
-    # Get summary of filtered results
-    filtered_count = len(result_df) - len(filtered_df[filtered_df['Lat'].notna()])
+    filtered_count = total_locations - locations_with_coordinates
+
+    potential_errors = find_potential_errors(updated_df, name_column)
     
     summary = {
         "total_locations": total_locations,
         "locations_with_coordinates": locations_with_coordinates,
         "locations_without_coordinates": locations_without_coordinates,
         "success_rate": success_rate,
-        "filtered_results": filtered_count,
+        "clean_and_correct_results": filtered_count,  # Key renommée ici
         "potential_errors": potential_errors,
-        "sample_results": filtered_df.head(5).to_dict('records')
+        "sample_results": updated_df.head(5).to_dict('records')
     }
     
-    return summary, filtered_df
+    return summary, updated_df
