@@ -133,7 +133,7 @@ with st.sidebar:
         st.markdown("""
         <div class="info-text">
             <strong>Google Maps API</strong><br>
-            ✓ High accuracy<
+            ✓ High accuracy<br>
             ✓ Consistent results<br>
             ❌ Requires an API key<br>
             ❌ Only 3000 free requests per month
